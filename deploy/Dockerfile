@@ -96,6 +96,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxcb1 libglib2.0-0 libgl1 libgomp1 libcurl4 \
     && rm -rf /var/lib/apt/lists/*
 
+# --- Runpod/ComfyUI compatibility: ensure /bin/python exists ---
+RUN ln -sf /usr/bin/python3.12 /bin/python && \
+    ln -sf /usr/bin/python3.12 /usr/bin/python
+
 # Install uv (fast Python package manager). Same pinned release and SHA-256s
 # as UV_VERSION/UV_ASSETS in src-tauri/src/setup.rs, instead of piping the
 # latest installer script into sh.
