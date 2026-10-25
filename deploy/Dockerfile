@@ -97,8 +97,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # --- Runpod/ComfyUI compatibility: ensure /bin/python exists ---
-RUN ln -sf /usr/bin/python3.12 /bin/python && \
-    ln -sf /usr/bin/python3.12 /usr/bin/python
+RUN rm -f /bin/python /usr/bin/python && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    ln -s /usr/bin/python3 /bin/python
 
 # Install uv (fast Python package manager). Same pinned release and SHA-256s
 # as UV_VERSION/UV_ASSETS in src-tauri/src/setup.rs, instead of piping the
