@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
+DATA_DIR="${MOOSHIEUI_DATA_DIR:-/data}"
+COMFYUI_PATH="${COMFYUI_PATH:-/opt/comfyui}"
+
 # ── Admin password guard ──
-# Validate admin env vars and refuse to start with a placeholder password (the
-# server would not create the admin account, leaving a deployment nobody can
-# administer).
 if [ -n "$MOOSHIEUI_ADMIN_USER" ] || [ -n "$MOOSHIEUI_ADMIN_PASS" ]; then
     if [ -z "$MOOSHIEUI_ADMIN_USER" ] || [ -z "$MOOSHIEUI_ADMIN_PASS" ]; then
         echo "ERROR: Both MOOSHIEUI_ADMIN_USER and MOOSHIEUI_ADMIN_PASS must be set." >&2
@@ -28,36 +28,42 @@ if [ -n "$MOOSHIEUI_ADMIN_USER" ] || [ -n "$MOOSHIEUI_ADMIN_PASS" ]; then
     esac
 fi
 
-# ── Volume ownership ──
-# The image runs as the unprivileged user mooshie (uid 10001, gid 10001). Volumes
-# created by earlier images, which ran as root, are root-owned: say how to fix
-# that instead of failing later on the first write.
-for dir in /data /data/models; do
+# ── Volume ownership / writability ──
+for dir in "${DATA_DIR}" "${DATA_DIR}/models"; do
     if [ -e "$dir" ] && [ ! -w "$dir" ]; then
         echo "ERROR: $dir is not writable by uid $(id -u) (gid $(id -g))." >&2
-        echo "  Hand the volume to the image's user once, e.g.:" >&2
-        echo "    docker run --rm --user 0 -v <volume-or-host-path>:$dir --entrypoint chown <image> -R 10001:10001 $dir" >&2
-        echo "  or, for a host directory: sudo chown -R 10001:10001 <host-path>" >&2
-        echo "  On Kubernetes, set the pod securityContext fsGroup: 10001 (see deploy/k8s/deployment.yaml)." >&2
+        echo "Fix ownership once (as root): chown -R 10001:10001 ${DATA_DIR}" >&2
         exit 1
     fi
 done
 
-# Ensure the persistent models directory exists.
-mkdir -p /data/models
+# Ensure persistent dirs exist
+mkdir -p "${DATA_DIR}/models" "${DATA_DIR}/comfyui/custom_nodes" "${DATA_DIR}/comfyui/output"
 
-# Replace ComfyUI's models/ with a symlink to the persistent volume.
-# This ensures downloaded models survive container recreation.
-# The symlink may have been broken by a volume overlay.
-if [ ! -L "${COMFYUI_PATH}/models" ] || [ "$(readlink "${COMFYUI_PATH}/models")" != "/data/models" ]; then
-    rm -rf "${COMFYUI_PATH}/models"
-    ln -s /data/models "${COMFYUI_PATH}/models"
-fi
+# Link ComfyUI mutable dirs to persistent storage
+link_dir () {
+    src="$1"        # e.g. /opt/comfyui/models
+    target="$2"     # e.g. /data/models
 
-# Copy default ComfyUI model subdirectory structure if the volume is fresh.
-# This is needed because ComfyUI expects certain subdirectories to exist.
+    if [ -L "$src" ]; then
+        # If symlink points elsewhere, replace it
+        if [ "$(readlink "$src")" != "$target" ]; then
+            rm -f "$src"
+            ln -s "$target" "$src"
+        fi
+    else
+        rm -rf "$src"
+        ln -s "$target" "$src"
+    fi
+}
+
+link_dir "${COMFYUI_PATH}/models" "${DATA_DIR}/models"
+link_dir "${COMFYUI_PATH}/custom_nodes" "${DATA_DIR}/comfyui/custom_nodes"
+link_dir "${COMFYUI_PATH}/output" "${DATA_DIR}/comfyui/output"
+
+# Create default ComfyUI model subdirectories
 for subdir in checkpoints clip clip_vision configs controlnet diffusers diffusion_models embeddings gligen hypernetworks loras photomaker style_models unet upscale_models vae vae_approx ultralytics; do
-    mkdir -p "/data/models/${subdir}"
+    mkdir -p "${DATA_DIR}/models/${subdir}"
 done
 
 exec "$@"
