@@ -1,18 +1,16 @@
 services:
-
   mooshieui:
     image: ghcr.io/mooshieblob1/mooshieui:latest
-
     build:
-       context: .
-       dockerfile: deploy/Dockerfile
-    
+      context: .
+      dockerfile: deploy/Dockerfile
+
     ports:
       - "${MOOSHIEUI_PORT:-3200}:3200"
 
     volumes:
-      - mooshie-data:/workspace
-      - "${MODELS_PATH:-./models}:/workspace/models"
+      - mooshie-data:/data
+      - "${MODELS_PATH:-./models}:/data/models"
 
     environment:
       MOOSHIEUI_DATA_DIR: /data
@@ -20,22 +18,19 @@ services:
       MOOSHIEUI_ADMIN_PASS: "${MOOSHIEUI_ADMIN_PASS:?Set MOOSHIEUI_ADMIN_PASS in your environment}"
       RUST_LOG: "${RUST_LOG:-info}"
       MOOSHIEUI_TRUST_LOCALHOST: "${MOOSHIEUI_TRUST_LOCALHOST:-true}"
-      # NVIDIA_VISIBLE_DEVICES is optional; remove if NVIDIA is not used.
+      # Optional; safe to remove
       NVIDIA_VISIBLE_DEVICES: "${NVIDIA_VISIBLE_DEVICES:-all}"
 
     cap_drop:
       - ALL
-
     security_opt:
       - no-new-privileges:true
 
     read_only: true
-
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=64m
 
     restart: unless-stopped
-
 
     logging:
       driver: json-file
