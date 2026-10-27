@@ -8,7 +8,7 @@
 #
 # Build args:
 #   COMFYUI_VERSION  — Optional ComfyUI ref override (default: managed source pin)
-#   TORCH_VERSION    — PyTorch version string (default: 2.7.1)
+#   TORCH_VERSION    — PyTorch version string (default: 2.11.0)
 # =============================================================================
 
 # ---------------------------------------------------------------------------
@@ -95,11 +95,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git curl ca-certificates \
     libxcb1 libglib2.0-0 libgl1 libgomp1 libcurl4 \
     && rm -rf /var/lib/apt/lists/*
-
-# --- Runpod/ComfyUI compatibility: ensure /bin/python exists ---
-RUN rm -f /bin/python /usr/bin/python && \
-    ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/python3 /bin/python
 
 # Install uv (fast Python package manager). Same pinned release and SHA-256s
 # as UV_VERSION/UV_ASSETS in src-tauri/src/setup.rs, instead of piping the
